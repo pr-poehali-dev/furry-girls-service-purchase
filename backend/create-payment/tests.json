@@ -1,0 +1,44 @@
+{
+  "tests": [
+    {
+      "name": "OPTIONS request for CORS",
+      "method": "OPTIONS",
+      "path": "/",
+      "expectedStatus": 200,
+      "expectedBody": "",
+      "bodyMatcher": "exact"
+    },
+    {
+      "name": "Create payment with valid data",
+      "method": "POST",
+      "path": "/",
+      "body": {
+        "amount": 5000,
+        "description": "Заказ Кристал",
+        "performer_name": "Кристал",
+        "customer_email": "test@example.com"
+      },
+      "expectedStatus": 200,
+      "expectedBody": {
+        "payment_id": "string",
+        "payment_url": "string",
+        "amount": 5000,
+        "status": "pending"
+      },
+      "bodyMatcher": "partial"
+    },
+    {
+      "name": "Create payment without amount",
+      "method": "POST",
+      "path": "/",
+      "body": {
+        "description": "Test"
+      },
+      "expectedStatus": 400,
+      "expectedBody": {
+        "error": "Amount is required"
+      },
+      "bodyMatcher": "partial"
+    }
+  ]
+}

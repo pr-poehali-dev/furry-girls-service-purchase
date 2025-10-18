@@ -72,13 +72,9 @@ const performers: Performer[] = [
 export default function Index() {
   const [selectedPerformer, setSelectedPerformer] = useState<Performer | null>(null);
   const [paymentOpen, setPaymentOpen] = useState(false);
-  const [paymentMethod, setPaymentMethod] = useState('card');
   const [isProcessing, setIsProcessing] = useState(false);
   const [customerName, setCustomerName] = useState('');
   const [customerEmail, setCustomerEmail] = useState('');
-  const [cardNumber, setCardNumber] = useState('');
-  const [cardExpiry, setCardExpiry] = useState('');
-  const [cardCvv, setCardCvv] = useState('');
   const { toast } = useToast();
 
   const handleBooking = (performer: Performer) => {
@@ -96,32 +92,44 @@ export default function Index() {
       return;
     }
 
-    if (paymentMethod === 'card' && (!cardNumber || !cardExpiry || !cardCvv)) {
-      toast({
-        title: 'Ошибка',
-        description: 'Заполните данные карты',
-        variant: 'destructive',
-      });
-      return;
-    }
+    if (!selectedPerformer) return;
 
     setIsProcessing(true);
 
-    await new Promise(resolve => setTimeout(resolve, 2000));
+    try {
+      const response = await fetch('https://functions.poehali.dev/5a34c391-650d-4422-a91e-626d722b9f55', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          amount: selectedPerformer.price,
+          description: `Заказ ${selectedPerformer.name} - ${selectedPerformer.duration}`,
+          performer_name: selectedPerformer.name,
+          customer_email: customerEmail,
+        }),
+      });
 
-    setIsProcessing(false);
-    setPaymentOpen(false);
-    
-    toast({
-      title: '✨ Оплата успешна!',
-      description: `Заказ ${selectedPerformer?.name} оформлен. Подтверждение отправлено на ${customerEmail}`,
-    });
+      const data = await response.json();
 
-    setCustomerName('');
-    setCustomerEmail('');
-    setCardNumber('');
-    setCardExpiry('');
-    setCardCvv('');
+      if (response.ok && data.payment_url) {
+        window.location.href = data.payment_url;
+      } else {
+        toast({
+          title: 'Ошибка',
+          description: data.error || 'Не удалось создать платёж',
+          variant: 'destructive',
+        });
+        setIsProcessing(false);
+      }
+    } catch (error) {
+      toast({
+        title: 'Ошибка',
+        description: 'Не удалось подключиться к серверу оплаты',
+        variant: 'destructive',
+      });
+      setIsProcessing(false);
+    }
   };
 
   return (
@@ -244,97 +252,15 @@ export default function Index() {
               </div>
             </div>
 
-            <div className="space-y-4">
-              <Label className="text-base">Способ оплаты</Label>
-              <RadioGroup value={paymentMethod} onValueChange={setPaymentMethod}>
-                <div className="flex items-center space-x-2 p-3 rounded-lg border border-border hover:border-primary transition-colors cursor-pointer">
-                  <RadioGroupItem value="card" id="card" />
-                  <Label htmlFor="card" className="flex-1 cursor-pointer">
-                    <div className="flex items-center gap-2">
-                      <Icon name="CreditCard" className="h-5 w-5" />
-                      <span>Банковская карта</span>
-                    </div>
-                  </Label>
-                </div>
-                <div className="flex items-center space-x-2 p-3 rounded-lg border border-border hover:border-primary transition-colors cursor-pointer">
-                  <RadioGroupItem value="sbp" id="sbp" />
-                  <Label htmlFor="sbp" className="flex-1 cursor-pointer">
-                    <div className="flex items-center gap-2">
-                      <Icon name="Smartphone" className="h-5 w-5" />
-                      <span>СБП</span>
-                    </div>
-                  </Label>
-                </div>
-                <div className="flex items-center space-x-2 p-3 rounded-lg border border-border hover:border-primary transition-colors cursor-pointer">
-                  <RadioGroupItem value="crypto" id="crypto" />
-                  <Label htmlFor="crypto" className="flex-1 cursor-pointer">
-                    <div className="flex items-center gap-2">
-                      <Icon name="Bitcoin" className="h-5 w-5" />
-                      <span>Криптовалюта</span>
-                    </div>
-                  </Label>
-                </div>
-              </RadioGroup>
+            <div className="p-4 bg-muted/50 rounded-lg border border-border text-center">
+              <div className="flex items-center justify-center gap-2 mb-2">
+                <Icon name="CreditCard" className="h-6 w-6 text-primary" />
+                <span className="font-semibold text-lg">Оплата через ЮMoney</span>
+              </div>
+              <p className="text-sm text-muted-foreground">
+                После нажатия кнопки вы будете перенаправлены на безопасную страницу оплаты ЮMoney
+              </p>
             </div>
-
-            {paymentMethod === 'card' && (
-              <div className="space-y-3">
-                <div className="space-y-2">
-                  <Label htmlFor="card-number">Номер карты</Label>
-                  <Input 
-                    id="card-number" 
-                    placeholder="0000 0000 0000 0000" 
-                    className="bg-input border-border"
-                    value={cardNumber}
-                    onChange={(e) => setCardNumber(e.target.value)}
-                    maxLength={19}
-                  />
-                </div>
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="space-y-2">
-                    <Label htmlFor="expiry">Срок</Label>
-                    <Input 
-                      id="expiry" 
-                      placeholder="MM/YY" 
-                      className="bg-input border-border"
-                      value={cardExpiry}
-                      onChange={(e) => setCardExpiry(e.target.value)}
-                      maxLength={5}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="cvv">CVV</Label>
-                    <Input 
-                      id="cvv" 
-                      placeholder="000" 
-                      type="password" 
-                      className="bg-input border-border"
-                      value={cardCvv}
-                      onChange={(e) => setCardCvv(e.target.value)}
-                      maxLength={3}
-                    />
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {paymentMethod === 'sbp' && (
-              <div className="p-4 bg-muted/50 rounded-lg border border-border text-center">
-                <Icon name="Smartphone" className="h-12 w-12 mx-auto mb-2 text-primary" />
-                <p className="text-sm text-muted-foreground">
-                  После нажатия кнопки откроется приложение банка для оплаты через СБП
-                </p>
-              </div>
-            )}
-
-            {paymentMethod === 'crypto' && (
-              <div className="p-4 bg-muted/50 rounded-lg border border-border text-center">
-                <Icon name="Bitcoin" className="h-12 w-12 mx-auto mb-2 text-primary" />
-                <p className="text-sm text-muted-foreground">
-                  После нажатия кнопки вы получите адрес кошелька для оплаты
-                </p>
-              </div>
-            )}
           </div>
           <DialogFooter>
             <Button 
